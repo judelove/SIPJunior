@@ -1,8 +1,11 @@
 package org.rootio.sipjunior;
 
+import android.app.Activity;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.net.sip.SipAudioCall;
 import android.net.sip.SipException;
 import android.net.sip.SipManager;
 import android.net.sip.SipProfile;
@@ -22,13 +25,15 @@ import static android.content.ContentValues.TAG;
 public class SIPHandler {
 
     private SipManager sipManager;
-    private SipProfile SIPProfile;
+    private SipProfile sipProfile;
+    private SipAudioCall sipCall;
+    private CallState callState = CallState.IDLE;
+    private RegistrationState registrationState = RegistrationState.UNREGISTERED;
     private final String userName, password, domain;
     private final int port;
     private Context parent;
 
-    SIPHandler(Context parent, String userName, String password, String domain, int port)
-    {
+    SIPHandler(Context parent, String userName, String password, String domain, int port) {
         this.userName = userName;
         this.password = password;
         this.domain = domain;
@@ -39,69 +44,126 @@ public class SIPHandler {
 
     }
 
-    private void prepareSipProfile()
-    {
+    private void prepareSipProfile() {
         SipProfile.Builder builder = null;
         try {
             builder = new SipProfile.Builder(this.userName, this.domain);
 
-        builder.setPassword(this.password);
-        this.SIPProfile = builder.build();
+            builder.setPassword(this.password);
+            this.sipProfile = builder.build();
         } catch (ParseException e) {
             e.printStackTrace();
         }
     }
-    
-    SipManager register()
-    {
+
+    void register() {
         try {
             Intent intent = new Intent();
             intent.setAction("org.rootio.sipjunior.INCOMING_CALL");
 
             PendingIntent pendingIntent = PendingIntent.getBroadcast(this.parent, 0, intent, Intent.FILL_IN_DATA);
-            this.sipManager.open(this.SIPProfile, pendingIntent, null);
-            Listener lst = new Listener();
-            this.sipManager.register(this.SIPProfile, 30, lst);
-            //this.sipManager.setRegistrationListener(this.SIPProfile.getUriString(), lst);
-return this.sipManager;
+            this.sipManager.open(this.sipProfile, pendingIntent, null);
+            this.sipManager.register(this.sipProfile, 30, new RegistrationListener());
+            this.listenForCalls();
         } catch (SipException e) {
             e.printStackTrace();
-            return null;
         }
     }
 
-    class Listener implements SipRegistrationListener
-    {
+    private void listenForCalls() {
+        IntentFilter fltr = new IntentFilter();
+        fltr.addAction("org.rootio.sipjunior.INCOMING_CALL");
+        CallReceiver rcv = new CallReceiver(this.sipManager);
+        this.parent.registerReceiver(rcv, fltr);
+    }
+
+    public void deregister() {
+        try {
+            this.sipManager.unregister(this.sipProfile, new UnregistrationListener());
+           // this.sipManager.close(this.sipProfile.getUriString());
+        } catch (SipException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void call(String phoneNumber) {
+        try {
+            this.sipCall = this.sipManager.makeAudioCall(this.sipProfile.getProfileName(), phoneNumber, new SipAudioCall.Listener(), 20);
+        } catch (SipException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void hangup() {
+        try {
+            this.sipCall.endCall();
+        } catch (SipException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void notifyRegistrationEvent(final String message, final RegistrationState registrationState) {
+        ((Activity) SIPHandler.this.parent).runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(SIPHandler.this.parent, message, Toast.LENGTH_LONG).show();
+                SIPHandler.this.registrationState = registrationState;
+                ((SipEventsNotifiable) SIPHandler.this.parent).updateRegistrationState(SIPHandler.this.registrationState);
+            }
+        });
+    }
+
+    class CallListener extends SipAudioCall.Listener {
+
+        @Override
+        public void onRinging(SipAudioCall call, SipProfile caller) {
+            try {
+                SIPHandler.this.sipCall = call;
+                SIPHandler.this.sipCall.answerCall(30);
+
+                Log.i(TAG, "onRinging: Call answered n listener");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+    }
+
+    class RegistrationListener implements SipRegistrationListener {
 
         @Override
         public void onRegistering(String localProfileUri) {
-            showToast("reging");
-            Log.i(TAG, "onRegistering: reging");
+            notifyRegistrationEvent("Registering", RegistrationState.REGISTERING);
         }
 
         @Override
-        public void onRegistrationDone(String localProfileUri, long expiryTime) {
-            showToast("reged");
-            Log.i(TAG, "onRegistrationDone: reged with expiry time" + expiryTime);
+        public void onRegistrationDone(String localProfileUri,final long expiryTime) {
+            notifyRegistrationEvent("Registration successful", RegistrationState.REGISTERED);
         }
 
         @Override
-        public void onRegistrationFailed(String localProfileUri, int errorCode, String errorMessage) {
-            showToast("failed");
-            Log.i(TAG, "onRegistrationFailed: " +errorMessage);
-        }
-
-        private void showToast(final String message)
-        {
-            Runnable msg = new Runnable() {
-                @Override
-                public void run() {
-                    Looper.prepare();
-                    Toast.makeText(SIPHandler.this.parent, message, Toast.LENGTH_LONG).show();
-                }
-            };
-            Thread thr = new Thread(msg);
-            thr.start();
+        public void onRegistrationFailed(final String localProfileUri, final int errorCode, final String errorMessage) {
+            notifyRegistrationEvent("Registration failed", RegistrationState.UNREGISTERED);
         }
     }
+
+    class UnregistrationListener implements SipRegistrationListener {
+
+        @Override
+        public void onRegistering(String localProfileUri) {
+            notifyRegistrationEvent("Deregistering", RegistrationState.DEREGISTERING);
+        }
+
+        @Override
+        public void onRegistrationDone(String localProfileUri,final long expiryTime) {
+            notifyRegistrationEvent("Deregistration successful", RegistrationState.UNREGISTERED);
+        }
+
+        @Override
+        public void onRegistrationFailed(final String localProfileUri, final int errorCode, final String errorMessage) {
+            notifyRegistrationEvent("Registration failed", RegistrationState.UNREGISTERED);
+        }
+    }
+
+
 }

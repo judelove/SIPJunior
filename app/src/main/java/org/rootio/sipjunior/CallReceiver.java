@@ -37,6 +37,7 @@ public class CallReceiver extends BroadcastReceiver {
                         e.printStackTrace();
                     }
                 }
+
             };
 
             SipAudioCall incomingCall = mng.takeAudioCall(intent, listener);

@@ -1,0 +1,13 @@
+{
+  "server" :
+  {
+    "domain":"10.0.2.233",
+    "port":5060,
+    "username": "1011",
+    "password": "1234"
+  },
+  "codec" : {
+    "g729": true,
+    "gsm": true
+  }
+}
