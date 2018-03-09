@@ -47,7 +47,7 @@ public class HomeActivity extends AppCompatActivity implements SipEventsNotifiab
 
     }
 
-    private void call(View v)
+    public void call(View v)
     {
         TextView phoneNumberTv = (TextView)this.findViewById(R.id.phoneNumber_tv);
         String phoneNumber = phoneNumberTv.getText().toString();
@@ -55,7 +55,7 @@ public class HomeActivity extends AppCompatActivity implements SipEventsNotifiab
 
     }
 
-    private void hangup(View v)
+    public void hangup(View v)
     {
         this.hnd.hangup();
     }
@@ -77,12 +77,24 @@ public class HomeActivity extends AppCompatActivity implements SipEventsNotifiab
                 cr.setVisibility(View.INVISIBLE);
                 btn.setText("Call");
                 btn.setBackgroundColor(Color.parseColor("#ff669900"));
+                btn.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        HomeActivity.this.call(v);
+                    }
+                });
                 break;
             case INCALL:
                 cr.stop();
                 cr.setVisibility(View.VISIBLE);
                 btn.setText("End");
                 btn.setBackgroundColor(Color.parseColor("#ff996600"));
+                btn.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        HomeActivity.this.hangup(v);
+                    }
+                });
                 break;
         }
 

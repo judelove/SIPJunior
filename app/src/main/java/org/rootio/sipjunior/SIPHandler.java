@@ -88,7 +88,7 @@ public class SIPHandler {
 
     public void call(String phoneNumber) {
         try {
-            this.sipCall = this.sipManager.makeAudioCall(this.sipProfile.getProfileName(), phoneNumber, new SipAudioCall.Listener(), 20);
+            this.sipCall = this.sipManager.makeAudioCall(this.sipProfile.getUriString(), phoneNumber.contains("@") ? phoneNumber : phoneNumber + "@"+this.sipProfile.getSipDomain(), new OutgoingCallListener(), 20);
         } catch (SipException e) {
             e.printStackTrace();
         }
@@ -113,19 +113,51 @@ public class SIPHandler {
         });
     }
 
-    class CallListener extends SipAudioCall.Listener {
+    private void notifyCallEvent(final String message, final CallState callState) {
+        ((Activity) SIPHandler.this.parent).runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(SIPHandler.this.parent, message, Toast.LENGTH_LONG).show();
+                SIPHandler.this.callState = callState;
+                ((SipEventsNotifiable) SIPHandler.this.parent).updateCallState(SIPHandler.this.callState);
+            }
+        });
+    }
+
+    private
+
+    class OutgoingCallListener extends SipAudioCall.Listener {
 
         @Override
-        public void onRinging(SipAudioCall call, SipProfile caller) {
+        public void onError(SipAudioCall call, int errorCode, String message)
+        {
             try {
-                SIPHandler.this.sipCall = call;
-                SIPHandler.this.sipCall.answerCall(30);
+                SIPHandler.this.notifyCallEvent("Error", CallState.IDLE);
 
-                Log.i(TAG, "onRinging: Call answered n listener");
+                Log.i(TAG, "onError: " + message);
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
+
+        @Override
+        public void onCallEnded(SipAudioCall call) {
+            try {
+                SIPHandler.this.sipCall = null;
+                SIPHandler.this.notifyCallEvent("Call Ended", CallState.IDLE);
+                Log.i(TAG, "onCallEnded: Call Ended");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        @Override
+        public void onCallEstablished(SipAudioCall call)
+        {
+            SIPHandler.this.sipCall = call;
+            SIPHandler.this.sipCall.startAudio();
+            SIPHandler.this.notifyCallEvent("Call started", CallState.IDLE.INCALL);
+          }
 
     }
 
