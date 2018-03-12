@@ -1,19 +1,15 @@
 package org.rootio.sipjunior;
 
-import android.content.IntentFilter;
 import android.graphics.Color;
-import android.net.sip.SipManager;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.design.widget.BottomNavigationView;
 import android.support.v7.app.AppCompatActivity;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Chronometer;
 import android.widget.Switch;
 import android.widget.TextView;
-import android.widget.Toast;
+
+import java.util.Calendar;
 
 public class HomeActivity extends AppCompatActivity implements SipEventsNotifiable {
 
@@ -60,21 +56,50 @@ public class HomeActivity extends AppCompatActivity implements SipEventsNotifiab
         this.hnd.hangup();
     }
 
+    private void answer(View v) {
+this.hnd.answer();
+    }
+
     private void loadConfiguration()
     {
 
     }
 
+    private void startChronometry()
+    {
+        Chronometer cr = ((Chronometer)findViewById(R.id.chronometer2));
+        cr.setVisibility(View.VISIBLE);
+        final long base = Calendar.getInstance().getTimeInMillis();
+        cr.setBase(base);
+        cr.setOnChronometerTickListener(new Chronometer.OnChronometerTickListener() {
+            @Override
+            public void onChronometerTick(Chronometer chronometer) {
+
+                long time = Calendar.getInstance().getTimeInMillis() - base;
+                int h   = (int)(time /3600000);
+                int m = (int)(time - h*3600000)/60000;
+                int s= (int)(time - h*3600000- m*60000)/1000 ;
+                chronometer.setText(String.format("%02d:%02d:%02d",h, m, s));
+            }
+        });
+        cr.start();
+    }
+
+    private void stopChronometry() {
+        Chronometer cr = ((Chronometer)findViewById(R.id.chronometer2));
+        cr.setVisibility(View.INVISIBLE);
+        cr.stop();
+    }
+
     @Override
     public void updateCallState(CallState callState)
     {
-        Chronometer cr = ((Chronometer)findViewById(R.id.chronometer2));
+
         Button btn = ((Button)findViewById(R.id.call_btn));
         switch(callState)
         {
             case IDLE:
-                cr.stop();
-                cr.setVisibility(View.INVISIBLE);
+                this.stopChronometry();
                 btn.setText("Call");
                 btn.setBackgroundColor(Color.parseColor("#ff669900"));
                 btn.setOnClickListener(new View.OnClickListener() {
@@ -85,14 +110,22 @@ public class HomeActivity extends AppCompatActivity implements SipEventsNotifiab
                 });
                 break;
             case INCALL:
-                cr.stop();
-                cr.setVisibility(View.VISIBLE);
+                this.startChronometry();
                 btn.setText("End");
                 btn.setBackgroundColor(Color.parseColor("#ff996600"));
                 btn.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
                         HomeActivity.this.hangup(v);
+                    }
+                });
+                break;
+            case RINGING:
+                btn.setText("Answer Call");
+                btn.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        HomeActivity.this.answer(v);
                     }
                 });
                 break;

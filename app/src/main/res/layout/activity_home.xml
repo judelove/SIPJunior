@@ -42,9 +42,10 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_margin="@dimen/activity_horizontal_margin"
-            android:format="hh:mm:ss"
+            android:format="00:00:00"
             android:textAlignment="center"
-            android:textSize="24sp" />
+            android:textSize="24sp"
+            android:visibility="invisible" />
     </LinearLayout>
 
     <LinearLayout
