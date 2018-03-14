@@ -6,12 +6,11 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.net.sip.SipAudioCall;
 import android.net.sip.SipException;
-import android.net.sip.SipManager;
 import android.net.sip.SipProfile;
 import android.net.sip.SipRegistrationListener;
-import android.os.Looper;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -30,18 +29,36 @@ public class SIPHandler {
     private SipAudioCall sipCall;
     private CallState callState = CallState.IDLE;
     private RegistrationState registrationState = RegistrationState.UNREGISTERED;
-    private final String userName, password, domain;
-    private final int port;
+    private String username, password, domain;
+    private int port;
     private Context parent;
 
-    SIPHandler(Context parent, String userName, String password, String domain, int port) {
-        this.userName = userName;
-        this.password = password;
-        this.domain = domain;
-        this.port = port;
+    SIPHandler(Context parent) {
+
         this.parent = parent;
         this.sipManager = SipManager.newInstance(this.parent);
-        this.prepareSipProfile();
+        this.listenForConfigChanges(); //TODO: move this to onReg and stop listening onUnReg
+    }
+
+    private void loadConfig() {
+        SharedPreferences prefs = this.parent.getSharedPreferences("org.rootio.sipjunior", Context.MODE_PRIVATE);
+        if (prefs != null) {
+            this.domain = prefs.getString("org.rootio.sipjunior.domain", "");
+            this.username = prefs.getString("org.rootio.sipjunior.username", "");
+            this.password = prefs.getString("org.rootio.sipjunior.password", "");
+        }
+    }
+
+    private void listenForConfigChanges() {
+        this.parent.registerReceiver(new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (SIPHandler.this.registrationState == RegistrationState.REGISTERED) {
+                    SIPHandler.this.deregister();
+                    SIPHandler.this.register();
+                }
+            }
+        }, new IntentFilter("org.rootio.sipjunior.CONFIG_CHANGE"));
     }
 
     private void listenForIncomingCalls() {
@@ -53,35 +70,48 @@ public class SIPHandler {
 
     private void prepareSipProfile() {
         try {
-            SipProfile.Builder builder = null;
-            builder = new SipProfile.Builder(this.userName, this.domain);
-            builder.setPassword(this.password);
+            SipProfile.Builder builder = new SipProfile.Builder(username, domain);
+            builder.setPassword(password);
+            builder.setPort(5060);
             this.sipProfile = builder.build();
         } catch (ParseException e) {
-            e.printStackTrace();
+e.printStackTrace();
         }
     }
 
     void register() {
         try {
+            this.loadConfig();
+            this.prepareSipProfile();
+
+            if (this.username == "" || this.password == "" || this.domain == "") //Some servers may take blank username or passwords. modify accordingly..
+            {
+                this.notifyRegistrationEvent("Missing configuration information", this.registrationState);
+                return;
+            }
+
             Intent intent = new Intent();
             intent.setAction("org.rootio.sipjunior.INCOMING_CALL");
-
             PendingIntent pendingIntent = PendingIntent.getBroadcast(this.parent, 0, intent, Intent.FILL_IN_DATA);
-            this.sipManager.open(this.sipProfile, pendingIntent, null);
+            this.sipManager = SipManager.newInstance(this.parent);
+            this.sipManager.open(this.sipProfile);
+            Log.i(TAG, String.format("register: registering with username %s, password %s to domain %s", username, password, domain));
             this.sipManager.register(this.sipProfile, 30, new RegistrationListener());
-            this.listenForIncomingCalls();
+            //this.listenForIncomingCalls();
         } catch (SipException e) {
             e.printStackTrace();
+            this.notifyRegistrationEvent("A SIP error occurred. Check config and Internet connection", this.registrationState);
         }
     }
 
     public void deregister() {
         try {
+            this.sipManager.close(this.sipProfile.getUriString());
             this.sipManager.unregister(this.sipProfile, new UnregistrationListener());
-            // this.sipManager.close(this.sipProfile.getUriString());
+            this.sipManager = null;
         } catch (SipException e) {
             e.printStackTrace();
+            this.notifyRegistrationEvent("A SIP error occurred. Check config details or Internet connection", this.registrationState);
         }
     }
 
@@ -90,6 +120,7 @@ public class SIPHandler {
             this.sipCall = this.sipManager.makeAudioCall(this.sipProfile.getUriString(), phoneNumber.contains("@") ? phoneNumber : phoneNumber + "@" + this.sipProfile.getSipDomain(), new CallListener(), 20);
         } catch (SipException e) {
             e.printStackTrace();
+            this.showToast("A SIP error occurred. Check config details or Internet connection");
         }
     }
 
@@ -98,6 +129,7 @@ public class SIPHandler {
             this.sipCall.endCall();
         } catch (SipException e) {
             e.printStackTrace();
+            this.showToast("A SIP error occurred. Check config details or Internet connection");
         }
     }
 
@@ -108,6 +140,7 @@ public class SIPHandler {
             Log.i(TAG, "onReceive: call answered in recv");
         } catch (SipException e) {
             e.printStackTrace();
+            this.showToast("A SIP error occurred. Check config details or Internet connection");
         }
     }
 
@@ -133,6 +166,15 @@ public class SIPHandler {
         });
     }
 
+    private void showToast(final String message) {
+        ((Activity) SIPHandler.this.parent).runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(SIPHandler.this.parent, message, Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
     class CallReceiver extends BroadcastReceiver {
 
         private CallListener listener;
@@ -143,10 +185,11 @@ public class SIPHandler {
 
                 this.listener = new CallListener();
                 SIPHandler.this.sipCall = SIPHandler.this.sipManager.takeAudioCall(intent, listener);
-                SIPHandler.this.notifyCallEvent("Incoming call from " + SIPHandler.this.sipCall.getPeerProfile().getUserName(),CallState.RINGING);
+                SIPHandler.this.notifyCallEvent("Incoming call from " + SIPHandler.this.sipCall.getPeerProfile().getUserName(), CallState.RINGING);
                 Log.i(TAG, "onReceive: Received incoming call event");
-            } catch (Exception e) {
+            } catch (SipException e) {
                 e.printStackTrace();
+
             }
         }
     }
@@ -192,13 +235,12 @@ public class SIPHandler {
                 SIPHandler.this.notifyCallEvent("Ringing", CallState.RINGING);
                 Log.i(TAG, "onRinging: Call is ringing");
             } catch (SipException e) {
-                e.printStackTrace(); 
+                e.printStackTrace();
             }
         }
-        
+
         @Override
-        public void onCalling(SipAudioCall call)
-        {
+        public void onCalling(SipAudioCall call) {
             Log.i(TAG, "onCalling: Calling...");
         }
     }
@@ -235,7 +277,7 @@ public class SIPHandler {
 
         @Override
         public void onRegistrationFailed(final String localProfileUri, final int errorCode, final String errorMessage) {
-            notifyRegistrationEvent("Deregistration failed", RegistrationState.UNREGISTERED);
+            notifyRegistrationEvent(String.format("Deregistration failed with code %d and msg %s", errorCode,errorMessage), RegistrationState.REGISTERED);
         }
     }
 

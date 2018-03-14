@@ -22,8 +22,6 @@
             android:layout_margin="@dimen/activity_horizontal_margin"
             android:onClick="toggleRegistration"
             android:text="Not Registered"
-            android:textOff="Register"
-            android:textOn="Registered"
             android:textSize="24sp"
             android:textStyle="bold" />
 

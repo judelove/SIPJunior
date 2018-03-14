@@ -1,8 +1,11 @@
 package org.rootio.sipjunior;
 
+import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Chronometer;
@@ -34,8 +37,9 @@ public class HomeActivity extends AppCompatActivity implements SipEventsNotifiab
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_home);
-        this.hnd = new SIPHandler(this, "1011", "1234", "10.2.0.233", 5060);
+        this.hnd = new SIPHandler(this);
     }
+
 
     @Override
     protected void onStart() {
@@ -154,5 +158,25 @@ this.hnd.answer();
                 sw.setChecked(false);
         }
 
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu)
+    {
+        this.getMenuInflater().inflate(R.menu.navigation, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item)
+    {
+        switch(item.getItemId())
+        {
+            case R.id.config:
+                Intent intent = new Intent(this, Config.class);
+                this.startActivity(intent);
+                break;
+        }
+        return true;
     }
 }
