@@ -26,9 +26,9 @@ public class Config extends Activity {
         editor.putString("org.rootio.sipjunior.username",((EditText)this.findViewById(R.id.username_et)).getText().toString().trim());
         editor.putString("org.rootio.sipjunior.password",((EditText)this.findViewById(R.id.password_et)).getText().toString().trim());
         editor.commit();
-        Toast.makeText(this, "Settings saved", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Settings saved. Please re-register to use new configuration", Toast.LENGTH_SHORT).show();
 
-        //fire off notification of account change to triger re-registration
+        //fire off notification of account change to trigger re-registration
         this.announceConfigChange();
     }
 
