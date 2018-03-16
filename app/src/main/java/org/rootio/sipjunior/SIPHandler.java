@@ -235,9 +235,7 @@ public class SIPHandler extends Service {
         @Override
         public void onError(SipAudioCall call, int errorCode, String message) {
             try {
-                ContentValues values = new ContentValues();
-                values.put("otherParty", call.getPeerProfile().getUriString());
-                SIPHandler.this.notifyCallEvent(CallState.IDLE, values);
+                SIPHandler.this.notifyCallEvent(CallState.IDLE, null);
 
                 Log.i(TAG, "onError: " + message);
             } catch (Exception e) {
@@ -249,9 +247,7 @@ public class SIPHandler extends Service {
         public void onCallEnded(SipAudioCall call) {
             try {
                 SIPHandler.this.sipCall = null;
-                ContentValues values = new ContentValues();
-                values.put("otherParty", call.getPeerProfile().getUriString());
-                SIPHandler.this.notifyCallEvent(CallState.IDLE, values);
+                SIPHandler.this.notifyCallEvent(CallState.IDLE, null);
                 Log.i(TAG, "onCallEnded: Call Ended");
             } catch (Exception e) {
                 e.printStackTrace();
@@ -269,7 +265,6 @@ public class SIPHandler extends Service {
 
         @Override
         public void onRinging(SipAudioCall call, SipProfile caller) {
-            Log.i(TAG, "onRinging: Call is ringing");
             try {
                 SIPHandler.this.sipCall = call;
                 SIPHandler.this.sipCall.answerCall(30);
@@ -284,7 +279,17 @@ public class SIPHandler extends Service {
 
         @Override
         public void onCalling(SipAudioCall call) {
-            Log.i(TAG, "onCalling: Calling...");
+
+           try {
+                SIPHandler.this.sipCall = call;
+                //SIPHandler.this.sipCall.answerCall(30);
+                ContentValues values = new ContentValues();
+                values.put("otherParty", call.getPeerProfile().getUriString());
+                SIPHandler.this.notifyCallEvent(CallState.CALLING, values);
+                Log.i(TAG, "onCalling: Outgoing call");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 

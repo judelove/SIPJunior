@@ -5,5 +5,5 @@ package org.rootio.sipjunior;
  */
 
 public enum CallState {
-    RINGING, INCALL, IDLE
+    RINGING, INCALL, CALLING, IDLE
 }

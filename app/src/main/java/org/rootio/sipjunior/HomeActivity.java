@@ -106,7 +106,7 @@ public class HomeActivity extends AppCompatActivity implements SipEventsNotifiab
                         HomeActivity.this.call(v);
                     }
                 });
-                if(values != null && values.containsKey("otherParty")) //ideally check for direction and report if outgoing or incoming
+                if(values != null && values.containsKey("otherParty")) //not being sent au moment
                 {
                     Toast.makeText(this,"Call with " + values.getAsString("otherParty") +" terminated", Toast.LENGTH_LONG).show();
                 }
@@ -114,7 +114,7 @@ public class HomeActivity extends AppCompatActivity implements SipEventsNotifiab
             case INCALL:
                 this.startChronometry();
                 btn.setText("End");
-                btn.setBackgroundColor(Color.parseColor("#ff996600"));
+                btn.setBackgroundColor(Color.parseColor("#ff990000"));
                 btn.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -134,9 +134,23 @@ public class HomeActivity extends AppCompatActivity implements SipEventsNotifiab
                         HomeActivity.this.answer(v);
                     }
                 });
-                if(values != null && values.containsKey("otherParty")) //ideally check for direction and report if outgoing or incoming
+                if(values != null && values.containsKey("otherParty"))
                 {
-                    Toast.makeText(this,"Call with " + values.getAsString("otherParty") +" ringing", Toast.LENGTH_LONG).show();
+                    Toast.makeText(this,"Incoming call from " + values.getAsString("otherParty"), Toast.LENGTH_LONG).show();
+                }
+                break;
+            case CALLING:
+                btn.setText("Cancel");
+                btn.setBackgroundColor(Color.parseColor("#ff996600"));
+                btn.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        HomeActivity.this.hangup(v);
+                    }
+                });
+                if(values != null && values.containsKey("otherParty"))
+                {
+                    Toast.makeText(this,"Calling " + values.getAsString("otherParty") , Toast.LENGTH_LONG).show();
                 }
                 break;
         }
