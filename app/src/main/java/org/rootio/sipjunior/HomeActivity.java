@@ -28,11 +28,10 @@ public class HomeActivity extends AppCompatActivity implements SipEventsNotifiab
 
     public void toggleRegistration(View v) {
         if (((Switch) v).isChecked()) {
-
-            this.handler.register();
+          this.handler.register();
         } else {
             this.stopService(new Intent(this, SIPHandler.class));
-             this.handler.deregister(false);
+             this.handler.deregister();
         }
     }
 
@@ -171,6 +170,8 @@ public class HomeActivity extends AppCompatActivity implements SipEventsNotifiab
                 sw.setText("Registered");
                 sw.setEnabled(true);
                 sw.setChecked(true);
+
+
                 acc.setVisibility(View.VISIBLE);
                 if(values != null && values.containsKey("username")) //Requested notifications will not come with values
                 {

@@ -9,7 +9,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.gov.nist.javax.sip.message.Content;
 import android.net.sip.SipAudioCall;
 import android.net.sip.SipException;
 import android.net.sip.SipManager;
@@ -36,7 +35,6 @@ public class SIPHandler extends Service {
     private CallState callState = CallState.IDLE;
     private RegistrationState registrationState = RegistrationState.UNREGISTERED;
     private String username, password, domain;
-    private int port;
     private SipEventsNotifiable parent;
     private SharedPreferences prefs;
 
@@ -54,19 +52,19 @@ public class SIPHandler extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        //this.register();
+        //this.register(); nope. not on service start, otherwise service can not be running in unregistered state
         return Service.START_STICKY;
 
     }
 
     @Override
     public void onTaskRemoved(Intent intent) {
-        this.deregister(false);
+        this.deregister();
     }
 
     @Override
     public void onDestroy() {
-        this.deregister(false);
+        this.deregister();
     }
 
 
@@ -125,7 +123,6 @@ public class SIPHandler extends Service {
             PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, Intent.FILL_IN_DATA);
             this.sipManager = SipManager.newInstance(this);
             this.sipManager.open(this.sipProfile, pendingIntent, null);
-            Log.i(TAG, String.format("register: registering with username %s, password %s to domain %s", username, password, domain));
             this.sipManager.register(this.sipProfile, 30, new RegistrationListener());
             this.listenForIncomingCalls();
         } catch (SipException e) {
@@ -138,11 +135,10 @@ public class SIPHandler extends Service {
         }
     }
 
-    public void deregister(boolean isRestart) {
+    public void deregister() {
         try {
-            this.sipManager.close(this.sipProfile.getUriString());
             this.sipManager.unregister(this.sipProfile, new UnregistrationListener());
-            //this.sipManager = null;
+
         } catch (SipException e) {
             e.printStackTrace();
             this.notifyRegistrationEvent(this.registrationState, null); //potential conflict of handling to the receiver
@@ -171,8 +167,7 @@ public class SIPHandler extends Service {
         try {
             this.sipCall.answerCall(30);
             this.sipCall.startAudio();
-            Log.i(TAG, "onReceive: call answered in recv");
-        } catch (SipException e) {
+         } catch (SipException e) {
             e.printStackTrace();
             this.showToast("A SIP error occurred. Check config details or Internet connection");
         }
@@ -221,8 +216,7 @@ public class SIPHandler extends Service {
                 ContentValues values = new ContentValues();
                 values.put("otherParty", SIPHandler.this.sipCall.getPeerProfile().getUriString());
                 SIPHandler.this.notifyCallEvent(CallState.RINGING, values);
-                Log.i(TAG, "onReceive: Received incoming call event");
-            } catch (SipException e) {
+             } catch (SipException e) {
                 e.printStackTrace();
 
             }
@@ -237,7 +231,6 @@ public class SIPHandler extends Service {
             try {
                 SIPHandler.this.notifyCallEvent(CallState.IDLE, null);
 
-                Log.i(TAG, "onError: " + message);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -248,7 +241,6 @@ public class SIPHandler extends Service {
             try {
                 SIPHandler.this.sipCall = null;
                 SIPHandler.this.notifyCallEvent(CallState.IDLE, null);
-                Log.i(TAG, "onCallEnded: Call Ended");
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -271,7 +263,6 @@ public class SIPHandler extends Service {
                 ContentValues values = new ContentValues();
                 values.put("otherParty", call.getPeerProfile().getUriString());
                 SIPHandler.this.notifyCallEvent(CallState.RINGING, values);
-                Log.i(TAG, "onRinging: Call is ringing");
             } catch (SipException e) {
                 e.printStackTrace();
             }
@@ -286,7 +277,6 @@ public class SIPHandler extends Service {
                 ContentValues values = new ContentValues();
                 values.put("otherParty", call.getPeerProfile().getUriString());
                 SIPHandler.this.notifyCallEvent(CallState.CALLING, values);
-                Log.i(TAG, "onCalling: Outgoing call");
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -337,6 +327,7 @@ public class SIPHandler extends Service {
             ContentValues values = new ContentValues();
             values.put("errorCode", errorCode);
             values.put("errorMessage", errorMessage);
+            Log.i(TAG, "onRegistrationFailed: " +errorMessage +errorCode);
             notifyRegistrationEvent(RegistrationState.REGISTERED, values);
         }
     }

@@ -3,7 +3,7 @@ package org.rootio.sipjunior;
 import android.content.ContentValues;
 
 /**
- * Created by HP Envy on 3/9/2018.
+ * Created by Jude Mukundane on 3/9/2018.
  */
 
 public interface SipEventsNotifiable {
